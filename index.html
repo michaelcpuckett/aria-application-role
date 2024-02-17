@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<style>
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    place-items: flex-start;
+    place-content: flex-start;
+    overscroll-behavior: none;
+  }
+
+  .container {
+    display: grid;
+    width: 350px;
+    height: 350px;
+    border: 1px solid lightgray;
+  }
+
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+  }
+
+  text-frame {
+    border: 2px solid lightgray;
+    cursor: move;
+  }
+
+  text-frame:has(directional-slider:focus) {
+    border: 2px solid red;
+  }
+
+  text-frame:has(input:focus) {
+    border: 2px solid blue;
+  }
+
+  text-frame {
+    display: grid;
+    place-content: center;
+    place-items: center;
+    width: 250px;
+    height: 250px;
+    transform: translate(var(--x, 0), calc(-1 * var(--y, 0)));
+    position: relative;
+    top: 100px;
+  }
+
+  input[type="text"] {
+    border: 0;
+    padding: 0;
+    margin: 0;
+    text-align: center;
+    width: 100%;
+    font: inherit;
+    position: absolute;
+    height: calc(100% - 40px);
+    width: calc(100% - 40px);
+    top: 20px;
+    left: 20px;
+    outline: 0;
+  }
+
+  .move-handles {
+    display: grid;
+    place-content: center;
+    place-items: center;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  text-frame:not(:has(directional-slider:focus)) .move-handles {
+    display: none;
+  }
+
+  .move-handle {
+    width: 10px;
+    height: 10px;
+    background-color: red;
+    border-radius: 50%;
+    position: absolute;
+  }
+
+  .move-handle--top-left {
+    top: 0;
+    left: 0;
+  }
+
+  .move-handle--top-right {
+    top: 0;
+    right: 0;
+  }
+
+  .move-handle--bottom-left {
+    bottom: 0;
+    left: 0;
+  }
+
+  .move-handle--bottom-right {
+    bottom: 0;
+    right: 0;
+  }
+</style>
+<infinite-canvas class="container">
+  <text-frame
+    role="group"
+    aria-roledescription="text frame"
+    aria-labelledby="text-frame-1-input"
+    id="text-frame-1"
+    style="--x: 0; --y: 100px"
+  >
+    <directional-slider
+      role="application"
+      aria-roledescription="directional slider"
+      aria-label="Bounding Box"
+      aria-describedby="text-frame-1-bounding-box-result"
+      id="text-frame-1-bounding-box"
+      aria-controls="text-frame-1"
+      tabindex="0"
+      class="visually-hidden"
+    >
+      <template shadowrootmode="open">
+        <style>
+          * {
+            box-sizing: border-box;
+          }
+
+          :host {
+            display: grid;
+            place-content: center;
+            place-items: center;
+            row-gap: 12px;
+          }
+
+          :host(:focus-within) {
+            border: 2px solid blue;
+          }
+
+          .container {
+            display: grid;
+            place-content: center;
+            place-items: center;
+            aspect-ratio: 1;
+          }
+
+          input[type="range"] {
+            grid-column: 1 / -1;
+            grid-row: 1 / 2;
+            padding: 0;
+            margin: 0;
+          }
+
+          input[aria-label="Y"] {
+            appearance: slider-vertical;
+            width: 1em;
+          }
+
+          output {
+            grid-column: 1 / -1;
+            grid-row: 2 / 3;
+            text-align: center;
+          }
+        </style>
+        <div class="container">
+          <input readonly type="range" tabindex="-1" aria-label="X" value="0" />
+          <input
+            readonly
+            type="range"
+            max="100"
+            min="0"
+            tabindex="-1"
+            aria-label="Y"
+            value="100"
+          />
+        </div>
+        <output class="visually-hidden" id="text-frame-1-bounding-box-result"
+          >0, 100</output
+        >
+      </template>
+    </directional-slider>
+    <input
+      id="text-frame-1-input"
+      type="text"
+      aria-label="Text"
+      value="Hello, World!"
+    />
+    <div class="move-handles" aria-hidden="true">
+      <div class="move-handle move-handle--top-left"></div>
+      <div class="move-handle move-handle--top-right"></div>
+      <div class="move-handle move-handle--bottom-left"></div>
+      <div class="move-handle move-handle--bottom-right"></div>
+    </div>
+  </text-frame>
+</infinite-canvas>
+
+<script type="module">
+  window.customElements.define(
+    "directional-slider",
+    class DirectionalSlider extends HTMLElement {
+      constructor() {
+        super();
+        const rangeElements = Array.from(
+          this.shadowRoot?.querySelectorAll("input")
+        );
+        this.xRangeElement = rangeElements.find(
+          (element) => element.getAttribute("aria-label") === "X"
+        );
+        this.yRangeElement = rangeElements.find(
+          (element) => element.getAttribute("aria-label") === "Y"
+        );
+        this.outputElement = this.shadowRoot?.querySelector("output");
+        this.addEventListener("keydown", this.handleKeyDown.bind(this));
+        this.xRangeElement.addEventListener(
+          "input",
+          this.handleInput.bind(this)
+        );
+        this.yRangeElement.addEventListener(
+          "input",
+          this.handleInput.bind(this)
+        );
+      }
+
+      handleKeyDown(event) {
+        const { key } = event;
+        const isShiftKeyPressed = event.shiftKey;
+        const amount = isShiftKeyPressed ? 10 : 1;
+
+        switch (key) {
+          case "ArrowLeft":
+            event.preventDefault();
+            this.xRangeElement.stepDown(amount);
+            this.handleInput();
+            break;
+          case "ArrowRight":
+            event.preventDefault();
+            this.xRangeElement.stepUp(amount);
+            this.handleInput();
+            break;
+          case "ArrowUp":
+            event.preventDefault();
+            this.yRangeElement.stepUp(amount);
+            this.handleInput();
+            break;
+          case "ArrowDown":
+            event.preventDefault();
+            this.yRangeElement.stepDown(amount);
+            this.handleInput();
+            break;
+          default:
+            return;
+        }
+      }
+
+      handleInput() {
+        this.outputElement.textContent = `${this.xRangeElement.value}, ${this.yRangeElement.value}`;
+        this.dispatchEvent(
+          new CustomEvent("directional-slider-change", {
+            bubbles: true,
+            detail: {
+              x: this.xRangeElement.value,
+              y: this.yRangeElement.value,
+            },
+          })
+        );
+      }
+    }
+  );
+
+  window.customElements.define(
+    "text-frame",
+    class TextFrame extends HTMLElement {
+      constructor() {
+        super();
+        this.addEventListener(
+          "directional-slider-change",
+          this.handleSliderChange
+        );
+        this.addEventListener("click", this.handleClick);
+      }
+
+      handleSliderChange = (event) => {
+        const { x, y } = event.detail;
+        this.style.setProperty("--x", `${x}px`);
+        this.style.setProperty("--y", `${y}px`);
+      };
+
+      handleClick = (event) => {
+        if (event.target === this) {
+          this.querySelector("directional-slider").focus();
+        }
+      };
+    }
+  );
+</script>
